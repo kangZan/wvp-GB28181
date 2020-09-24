@@ -14,19 +14,15 @@ import javax.sip.SipException;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
 
+import com.genersoft.iot.vmp.gb28181.bean.*;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.genersoft.iot.vmp.common.VideoManagerConstants;
-import com.genersoft.iot.vmp.gb28181.bean.Device;
-import com.genersoft.iot.vmp.gb28181.bean.DeviceChannel;
-import com.genersoft.iot.vmp.gb28181.bean.RecordInfo;
-import com.genersoft.iot.vmp.gb28181.bean.RecordItem;
 import com.genersoft.iot.vmp.gb28181.event.DeviceOffLineDetector;
 import com.genersoft.iot.vmp.gb28181.event.EventPublisher;
 import com.genersoft.iot.vmp.gb28181.transmit.callback.DeferredResultHolder;
@@ -38,47 +34,48 @@ import com.genersoft.iot.vmp.gb28181.utils.XmlUtil;
 import com.genersoft.iot.vmp.storager.IVideoManagerStorager;
 import com.genersoft.iot.vmp.utils.redis.RedisUtil;
 
-/**    
+/**
  * @Description:MESSAGE请求处理器
  * @author: swwheihei
- * @date:   2020年5月3日 下午5:32:41     
+ * @date: 2020年5月3日 下午5:32:41
  */
 public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
-	
-	private final static Logger logger = LoggerFactory.getLogger(MessageRequestProcessor.class);
-	
-	private SIPCommander cmder;
-	
-	private IVideoManagerStorager storager;
-	
-	private EventPublisher publisher;
-	
-	private RedisUtil redis;
-	
-	private DeferredResultHolder deferredResultHolder;
-	
-	private DeviceOffLineDetector offLineDetector;
-	
-	private final static String CACHE_RECORDINFO_KEY = "CACHE_RECORDINFO_";
-	
-	private static final String MESSAGE_KEEP_ALIVE = "Keepalive";
-	private static final String MESSAGE_CONFIG_DOWNLOAD = "ConfigDownload";
-	private static final String MESSAGE_CATALOG = "Catalog";
-	private static final String MESSAGE_DEVICE_INFO = "DeviceInfo";
-	private static final String MESSAGE_ALARM = "Alarm";
-	private static final String MESSAGE_RECORD_INFO = "RecordInfo";
+
+    private final static Logger logger = LoggerFactory.getLogger(MessageRequestProcessor.class);
+
+    private SIPCommander cmder;
+
+    private IVideoManagerStorager storager;
+
+    private EventPublisher publisher;
+
+    private RedisUtil redis;
+
+    private DeferredResultHolder deferredResultHolder;
+
+    private DeviceOffLineDetector offLineDetector;
+
+    private final static String CACHE_RECORDINFO_KEY = "CACHE_RECORDINFO_";
+
+    private static final String MESSAGE_KEEP_ALIVE = "Keepalive";
+    private static final String MESSAGE_CONFIG_DOWNLOAD = "ConfigDownload";
+    private static final String MESSAGE_CATALOG = "Catalog";
+    private static final String MESSAGE_DEVICE_INFO = "DeviceInfo";
+    private static final String MESSAGE_ALARM = "Alarm";
+    private static final String MESSAGE_PRESET_QUERY = "PresetQuery";
+    private static final String MESSAGE_RECORD_INFO = "RecordInfo";
 //	private static final String MESSAGE_BROADCAST = "Broadcast";
 //	private static final String MESSAGE_DEVICE_STATUS = "DeviceStatus";
 //	private static final String MESSAGE_MOBILE_POSITION = "MobilePosition";
 //	private static final String MESSAGE_MOBILE_POSITION_INTERVAL = "Interval";
-	
-	/**   
+
+	/**
 	 * 处理MESSAGE请求
-	 *  
+	 *
 	 * @param evt
 	 * @param layer
-	 * @param transaction  
-	 */  
+	 * @param transaction
+	 */
 	@Override
 	public void process(RequestEvent evt) {
 
@@ -103,13 +100,55 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			} else if (MESSAGE_RECORD_INFO.equals(cmd)) {
 				logger.info("接收到RecordInfo消息");
 				processMessageRecordInfo(evt);
-			}
-		} catch (DocumentException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/**
+			} else if (MESSAGE_PRESET_QUERY.equals(cmd)) {
+                logger.info("接收到Preset_Query消息");
+                processMessagePresetQuery(evt);
+            }
+        } catch (DocumentException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void processMessagePresetQuery(RequestEvent evt) {
+        try {
+            PresetInfo recordInfo = new PresetInfo();
+            Element rootElement = getRootElement(evt);
+            Element deviceIdElement = rootElement.element("DeviceID");
+            String deviceId = deviceIdElement.getText().toString();
+            String sn = XmlUtil.getText(rootElement, "SN");
+            recordInfo.setDeviceId(deviceId);
+            recordInfo.setSn(sn);
+            Element presetListElement = rootElement.element("PresetList");
+            if (presetListElement == null) {
+                return;
+            }
+            Iterator<Element> lstPresetIterator = presetListElement.elementIterator();
+            List<PresetItem> presetList = new ArrayList<PresetItem>();
+            if (lstPresetIterator != null) {
+                PresetItem preset;
+                while (lstPresetIterator.hasNext()) {
+                    preset = new PresetItem();
+                    Element itemPreset = lstPresetIterator.next();
+                    preset.setPresetId(XmlUtil.getText(itemPreset, "PresetId"));
+                    preset.setPresetName(XmlUtil.getText(itemPreset, "PresetName"));
+                    presetList.add(preset);
+                }
+                recordInfo.setPresetList(presetList);
+            }
+
+            RequestMessage msg = new RequestMessage();
+            msg.setDeviceId(deviceId);
+            msg.setType(DeferredResultHolder.CALLBACK_CMD_PRESETQUERY);
+            msg.setData(recordInfo);
+            deferredResultHolder.invokeResult(msg);
+        } catch (DocumentException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    /**
 	 * 收到deviceInfo设备信息请求 处理
 	 * @param evt
 	 */
@@ -118,7 +157,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			Element rootElement = getRootElement(evt);
 			Element deviceIdElement = rootElement.element("DeviceID");
 			String deviceId = deviceIdElement.getText().toString();
-			
+
 			Device device = storager.queryVideoDevice(deviceId);
 			if (device == null) {
 				return;
@@ -128,7 +167,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			device.setModel(XmlUtil.getText(rootElement,"Model"));
 			device.setFirmware(XmlUtil.getText(rootElement,"Firmware"));
 			storager.update(device);
-			
+
 			RequestMessage msg = new RequestMessage();
 			msg.setDeviceId(deviceId);
 			msg.setType(DeferredResultHolder.CALLBACK_CMD_DEVICEINFO);
@@ -138,7 +177,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/***
 	 * 收到catalog设备目录列表请求 处理
 	 * @param evt
@@ -219,7 +258,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/***
 	 * 收到alarm设备报警信息 处理
 	 * @param evt
@@ -229,7 +268,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			Element rootElement = getRootElement(evt);
 			Element deviceIdElement = rootElement.element("DeviceID");
 			String deviceId = deviceIdElement.getText().toString();
-			
+
 			Device device = storager.queryVideoDevice(deviceId);
 			if (device == null) {
 				return;
@@ -244,7 +283,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/***
 	 * 收到keepalive请求 处理
 	 * @param evt
@@ -262,7 +301,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/***
 	 * 收到catalog设备目录列表请求 处理
 	 * TODO 过期时间暂时写死180秒，后续与DeferredResult超时时间保持一致
@@ -282,7 +321,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			if (recordListElement == null) {
 				return;
 			}
-			
+
 			Iterator<Element> recordListIterator = recordListElement.elementIterator();
 			List<RecordItem> recordList = new ArrayList<RecordItem>();
 			if (recordListIterator != null) {
@@ -308,7 +347,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 				}
 				recordInfo.setRecordList(recordList);
 			}
-			
+
 			// 存在录像且如果当前录像明细个数小于总条数，说明拆包返回，需要组装，暂不返回
 			if (recordInfo.getSumNum() > 0 && recordList.size() > 0 && recordList.size() < recordInfo.getSumNum()) {
 				// 为防止连续请求该设备的录像数据，返回数据错乱，特增加sn进行区分
@@ -334,7 +373,7 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 					redis.set(cacheKey, recordList, 180);
 					return;
 				}
-				
+
 			}
 			// 走到这里，有以下可能：1、没有录像信息,第一次收到recordinfo的消息即返回响应数据，无redis操作
 			//               2、有录像数据，且第一次即收到完整数据，返回响应数据，无redis操作
@@ -348,12 +387,12 @@ public class MessageRequestProcessor extends SIPRequestAbstractProcessor {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private void responseAck(RequestEvent evt) throws SipException, InvalidArgumentException, ParseException {
 		Response response = getMessageFactory().createResponse(Response.OK,evt.getRequest());
 		getServerTransaction(evt).sendResponse(response);
 	}
-	
+
 	private Element getRootElement(RequestEvent evt) throws DocumentException {
 		Request request = evt.getRequest();
 		SAXReader reader = new SAXReader();

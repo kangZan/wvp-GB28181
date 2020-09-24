@@ -26,34 +26,34 @@ import com.genersoft.iot.vmp.gb28181.transmit.cmd.ISIPCommander;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.SIPRequestHeaderProvider;
 import com.genersoft.iot.vmp.gb28181.utils.DateUtil;
 
-/**    
- * @Description:设备能力接口，用于定义设备的控制、查询能力   
+/**
+ * @Description:设备能力接口，用于定义设备的控制、查询能力
  * @author: swwheihei
- * @date:   2020年5月3日 下午9:22:48     
+ * @date:   2020年5月3日 下午9:22:48
  */
 @Component
 public class SIPCommander implements ISIPCommander {
-	
+
 	@Autowired
 	private SipConfig sipConfig;
-	
+
 	@Autowired
 	private SIPRequestHeaderProvider headerProvider;
-	
+
 	@Autowired
 	private VideoStreamSessionManager streamSession;
-	
+
 	@Autowired
 	@Qualifier(value="tcpSipProvider")
 	private SipProvider tcpSipProvider;
-	
+
 	@Autowired
 	@Qualifier(value="udpSipProvider")
 	private SipProvider udpSipProvider;
-	
+
 	/**
 	 * 云台方向放控制，使用配置文件中的默认镜头移动速度
-	 * 
+	 *
 	 * @param device  控制设备
 	 * @param channelId  预览通道
 	 * @param leftRight  镜头左移右移 0:停止 1:左移 2:右移
@@ -67,7 +67,7 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 云台方向放控制
-	 * 
+	 *
 	 * @param device  控制设备
 	 * @param channelId  预览通道
 	 * @param leftRight  镜头左移右移 0:停止 1:左移 2:右移
@@ -81,11 +81,11 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 云台缩放控制，使用配置文件中的默认镜头缩放速度
-	 * 
+	 *
 	 * @param device  控制设备
 	 * @param channelId  预览通道
      * @param inOut      镜头放大缩小 0:停止 1:缩小 2:放大
-	 */  
+	 */
 	@Override
 	public boolean ptzZoomCmd(Device device, String channelId, int inOut) {
 		return ptzCmd(device, channelId, 0, 0, inOut, 0, sipConfig.getSpeed());
@@ -93,19 +93,19 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 云台缩放控制
-	 * 
+	 *
 	 * @param device  控制设备
 	 * @param channelId  预览通道
      * @param inOut      镜头放大缩小 0:停止 1:缩小 2:放大
      * @param zoomSpeed  镜头缩放速度
-	 */ 
+	 */
 	@Override
 	public boolean ptzZoomCmd(Device device, String channelId, int inOut, int zoomSpeed) {
 		return ptzCmd(device, channelId, 0, 0, inOut, 0, zoomSpeed);
 	}
-  
+
    /**
-	* 云台指令码计算 
+	* 云台指令码计算
 	*
     * @param leftRight  镜头左移右移 0:停止 1:左移 2:右移
     * @param upDown     镜头上移下移 0:停止 1:上移 2:下移
@@ -149,7 +149,7 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 云台控制，支持方向与缩放控制
-	 * 
+	 *
 	 * @param device  控制设备
 	 * @param channelId  预览通道
 	 * @param leftRight  镜头左移右移 0:停止 1:左移 2:右移
@@ -173,27 +173,27 @@ public class SIPCommander implements ISIPCommander {
 			ptzXml.append("<Info>");
 			ptzXml.append("</Info>");
 			ptzXml.append("</Control>");
-			
+
 			Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), "ViaPtzBranch", "FromPtzTag", "ToPtzTag");
-			
+
 			transmitRequest(device, request);
 			return true;
 		} catch (SipException | ParseException | InvalidArgumentException e) {
 			e.printStackTrace();
-		} 
+		}
 		return false;
 	}
 
 	/**
 	 * 请求预览视频流
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
-	 */  
+	 */
 	@Override
 	public String playStreamCmd(Device device, String channelId) {
 		try {
-			
+
 			String ssrc = streamSession.createPlaySsrc();
 			String transport = device.getTransport();
 			//
@@ -218,30 +218,30 @@ public class SIPCommander implements ISIPCommander {
 	             content.append("a=connection:new\r\n");
 	        }
 	        content.append("y="+ssrc+"\r\n");//ssrc
-	        
+
 	        Request request = headerProvider.createInviteRequest(device, channelId, content.toString(), null, "live", null);
-	
+
 	        ClientTransaction transaction = transmitRequest(device, request);
 	        streamSession.put(ssrc, transaction);
 			return ssrc;
 		} catch ( SipException | ParseException | InvalidArgumentException e) {
 			e.printStackTrace();
 			return null;
-		} 
+		}
 	}
-	
+
 	/**
 	 * 请求回放视频流
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
 	 * @param startTime 开始时间,格式要求：yyyy-MM-dd HH:mm:ss
 	 * @param endTime 结束时间,格式要求：yyyy-MM-dd HH:mm:ss
-	 */ 
+	 */
 	@Override
 	public String playbackStreamCmd(Device device, String channelId, String startTime, String endTime) {
 		try {
-			
+
 			String ssrc = streamSession.createPlayBackSsrc();
 			//
 			StringBuffer content = new StringBuffer(200);
@@ -266,9 +266,9 @@ public class SIPCommander implements ISIPCommander {
 	             content.append("a=connection:new\r\n");
 	        }
 	        content.append("y="+ssrc+"\r\n");//ssrc
-	        
+
 	        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), null, "playback", null);
-	
+
 	        ClientTransaction transaction = transmitRequest(device, request);
 	        streamSession.put(ssrc, transaction);
 			return ssrc;
@@ -277,22 +277,22 @@ public class SIPCommander implements ISIPCommander {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * 视频流停止
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
 	 */
 	@Override
 	public void streamByeCmd(String ssrc) {
-		
+
 		try {
 			ClientTransaction transaction = streamSession.get(ssrc);
 			if (transaction == null) {
 				return;
 			}
-			
+
 			Dialog dialog = transaction.getDialog();
 			if (dialog == null) {
 				return;
@@ -325,7 +325,7 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 语音广播
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
 	 */
@@ -337,10 +337,10 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 音视频录像控制
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
-	 */  
+	 */
 	@Override
 	public boolean recordCmd(Device device, String channelId) {
 		// TODO Auto-generated method stub
@@ -349,9 +349,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 报警布防/撤防命令
-	 * 
+	 *
 	 * @param device  视频设备
-	 */  
+	 */
 	@Override
 	public boolean guardCmd(Device device) {
 		// TODO Auto-generated method stub
@@ -360,9 +360,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 报警复位命令
-	 * 
+	 *
 	 * @param device  视频设备
-	 */  
+	 */
 	@Override
 	public boolean alarmCmd(Device device) {
 		// TODO Auto-generated method stub
@@ -371,10 +371,10 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 强制关键帧命令,设备收到此命令应立刻发送一个IDR帧
-	 * 
+	 *
 	 * @param device  视频设备
 	 * @param channelId  预览通道
-	 */ 
+	 */
 	@Override
 	public boolean iFameCmd(Device device, String channelId) {
 		// TODO Auto-generated method stub
@@ -383,9 +383,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 看守位控制命令
-	 * 
+	 *
 	 * @param device  视频设备
-	 */  
+	 */
 	@Override
 	public boolean homePositionCmd(Device device) {
 		// TODO Auto-generated method stub
@@ -394,9 +394,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 设备配置命令
-	 * 
+	 *
 	 * @param device  视频设备
-	 */  
+	 */
 	@Override
 	public boolean deviceConfigCmd(Device device) {
 		// TODO Auto-generated method stub
@@ -405,9 +405,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询设备状态
-	 * 
+	 *
 	 * @param device 视频设备
-	 */  
+	 */
 	@Override
 	public boolean deviceStatusQuery(Device device) {
 		// TODO Auto-generated method stub
@@ -416,9 +416,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询设备信息
-	 * 
+	 *
 	 * @param device 视频设备
-	 */  
+	 */
 	@Override
 	public boolean deviceInfoQuery(Device device) {
 		try {
@@ -429,10 +429,10 @@ public class SIPCommander implements ISIPCommander {
 			catalogXml.append("<SN>" + (int)((Math.random()*9+1)*100000) + "</SN>");
 			catalogXml.append("<DeviceID>" + device.getDeviceId() + "</DeviceID>");
 			catalogXml.append("</Query>");
-			
+
 			Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), "ViaDeviceInfoBranch", "FromDeviceInfoTag", "ToDeviceInfoTag");
 			transmitRequest(device, request);
-			
+
 		} catch (SipException | ParseException | InvalidArgumentException e) {
 			e.printStackTrace();
 			return false;
@@ -442,9 +442,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询目录列表
-	 * 
+	 *
 	 * @param device 视频设备
-	 */ 
+	 */
 	@Override
 	public boolean catalogQuery(Device device) {
 		try {
@@ -455,7 +455,7 @@ public class SIPCommander implements ISIPCommander {
 			catalogXml.append("<SN>" + (int)((Math.random()*9+1)*100000) + "</SN>");
 			catalogXml.append("<DeviceID>" + device.getDeviceId() + "</DeviceID>");
 			catalogXml.append("</Query>");
-			
+
 			Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), "ViaCatalogBranch", "FromCatalogTag", "ToCatalogTag");
 			transmitRequest(device, request);
 		} catch (SipException | ParseException | InvalidArgumentException e) {
@@ -467,14 +467,14 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询录像信息
-	 * 
+	 *
 	 * @param device 视频设备
 	 * @param startTime 开始时间,格式要求：yyyy-MM-dd HH:mm:ss
 	 * @param endTime 结束时间,格式要求：yyyy-MM-dd HH:mm:ss
-	 */  
+	 */
 	@Override
 	public boolean recordInfoQuery(Device device, String channelId, String startTime, String endTime) {
-		
+
 		try {
 			StringBuffer recordInfoXml = new StringBuffer(200);
 			recordInfoXml.append("<?xml version=\"1.0\" encoding=\"GB2312\"?>");
@@ -488,7 +488,7 @@ public class SIPCommander implements ISIPCommander {
 			// 大华NVR要求必须增加一个值为all的文本元素节点Type
 			recordInfoXml.append("<Type>all</Type>");
 			recordInfoXml.append("</Query>");
-			
+
 			Request request = headerProvider.createMessageRequest(device, recordInfoXml.toString(), "ViaRecordInfoBranch", "FromRecordInfoTag", "ToRecordInfoTag");
 			transmitRequest(device, request);
 		} catch (SipException | ParseException | InvalidArgumentException e) {
@@ -500,9 +500,9 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询报警信息
-	 * 
+	 *
 	 * @param device 视频设备
-	 */  
+	 */
 	@Override
 	public boolean alarmInfoQuery(Device device) {
 		// TODO Auto-generated method stub
@@ -511,37 +511,50 @@ public class SIPCommander implements ISIPCommander {
 
 	/**
 	 * 查询设备配置
-	 * 
+	 *
 	 * @param device 视频设备
-	 */  
+	 */
 	@Override
 	public boolean configQuery(Device device) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
-	/**
-	 * 查询设备预置位置
-	 * 
-	 * @param device 视频设备
-	 */  
-	@Override
-	public boolean presetQuery(Device device) {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    /**
+     * 查询设备预置位置
+     *
+     * @param device 视频设备
+     */
+    @Override
+    public boolean presetQuery(Device device) {
+        try {
+            StringBuffer presetQueryXml = new StringBuffer(200);
+            presetQueryXml.append("<?xml version=\"1.0\" encoding=\"GB2312\"?>");
+            presetQueryXml.append("<Query>");
+            presetQueryXml.append("<CmdType>PresetQuery</CmdType>");
+            presetQueryXml.append("<SN>" + (int) ((Math.random() * 9 + 1) * 100000) + "</SN>");
+            presetQueryXml.append("<DeviceID>" + device.getDeviceId() + "</DeviceID>");
+            presetQueryXml.append("</Query>");
+            Request request = headerProvider.createMessageRequest(device, presetQueryXml.toString(), "ViaPresetQueryBranch", "FromPresetQueryTag", "ToPresetQueryTag");
+            transmitRequest(device, request);
+        } catch (SipException | ParseException | InvalidArgumentException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
 
 	/**
 	 * 查询移动设备位置数据
-	 * 
+	 *
 	 * @param device 视频设备
-	 */  
+	 */
 	@Override
 	public boolean mobilePostitionQuery(Device device) {
 		// TODO Auto-generated method stub
 		return false;
 	}
-	
+
 	private ClientTransaction transmitRequest(Device device, Request request) throws SipException {
 		ClientTransaction clientTransaction = null;
 		if("TCP".equals(device.getTransport())) {
