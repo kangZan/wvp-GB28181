@@ -8,7 +8,6 @@ import java.util.List;
  * @author: zan.kang
  * @history: 1.created by zan.kang 2020/9/22 9:39
  * 2.
- * Copyright © 2020 by Shenzhen Splendor Power Grid Technology Co.,Ltd. All Rights Reserved.
  */
 public class PresetInfo {
 
