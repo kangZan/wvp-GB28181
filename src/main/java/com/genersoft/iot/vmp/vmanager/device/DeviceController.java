@@ -2,6 +2,7 @@ package com.genersoft.iot.vmp.vmanager.device;
 
 import java.util.List;
 
+import com.genersoft.iot.vmp.gb28181.bean.PresetInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,14 +79,14 @@ public class DeviceController {
     }
 
     @PostMapping("/presets/{deviceId}")
-    public DeferredResult<ResponseEntity<Device>> presetQuery(@PathVariable String deviceId) {
+    public DeferredResult<ResponseEntity<PresetInfo>> presetQuery(@PathVariable String deviceId) {
 
         if (logger.isDebugEnabled()) {
             logger.debug("查询预置位API调用，deviceId：" + deviceId);
         }
         Device device = storager.queryVideoDevice(deviceId);
         cmder.presetQuery(device);
-        DeferredResult<ResponseEntity<Device>> result = new DeferredResult<ResponseEntity<Device>>();
+        DeferredResult<ResponseEntity<PresetInfo>> result = new DeferredResult<ResponseEntity<PresetInfo>>();
         resultHolder.put(DeferredResultHolder.CALLBACK_CMD_PRESETQUERY + deviceId, result);
         return result;
     }
